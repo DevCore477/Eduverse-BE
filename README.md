@@ -605,29 +605,11 @@ chore: maintenance changes
 Future versions of Eduverse may include:
 
 - Personalized learning recommendations
-- Voice-based exercises
-- Writing exercises
 - Advanced student analytics
-- Parent progress reports
 - Teacher management
 - Classroom management
 - Additional languages
-- Real-time notifications
 - Enhanced learning recommendations
-
----
-
-## 📌 Project Status
-
-**Status:** Active Development
-
-The backend is continuously being improved to support new learning experiences, assessment features, gamification, and platform scalability.
-
----
-
-## 👨‍💻 Development
-
-Developed and maintained by **Verdant Soft**.
 
 ---
 
