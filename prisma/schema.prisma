@@ -1,0 +1,450 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model academic_years {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String     @unique
+  description String?
+  grade       Int?
+  pupils      pupils[]
+  subjects    subjects[]
+}
+
+model lesson_final_challenges {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  node_id                String                   @db.Uuid
+  challenge_json         Json
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  points                 Int                      @default(3)
+  difficulty             enum_difficulty?         @default(medium)
+  question_id            Int?
+  order_index            Int?
+  subject_structure      subject_structure        @relation(fields: [node_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user_question_attempts user_question_attempts[]
+
+  @@index([node_id], map: "idx_final_challenges_node_id")
+  @@index([question_id], map: "idx_final_challenges_question_id")
+}
+
+model lesson_practice_questions {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  node_id                String                   @db.Uuid
+  question_json          Json
+  points                 Int                      @default(3)
+  order_index            Int                      @default(autoincrement())
+  difficulty             enum_difficulty?         @default(medium)
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  subject_structure      subject_structure        @relation(fields: [node_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user_question_attempts user_question_attempts[]
+
+  @@index([node_id], map: "idx_practice_questions_node_id")
+}
+
+model lesson_step_content {
+  id                           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  step_id                      String       @db.Uuid
+  background_image_url         String?
+  tts_audio_url                String?
+  karaoke_json                 Json?
+  video_url                    String?
+  skip_available_after_seconds Int?         @default(10)
+  extras                       Json?
+  created_at                   DateTime     @default(now()) @db.Timestamptz(6)
+  lesson_steps                 lesson_steps @relation(fields: [step_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([step_id], map: "idx_lesson_step_content_step_id")
+}
+
+model lesson_steps {
+  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  node_id                 String                    @db.Uuid
+  step_type               enum_step_type
+  order_index             Int
+  unlock_rule             String?
+  created_at              DateTime                  @default(now()) @db.Timestamptz(6)
+  lesson_step_content     lesson_step_content[]
+  subject_structure       subject_structure         @relation(fields: [node_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  step_unlock_rules       step_unlock_rules[]
+  user_lesson_step_status user_lesson_step_status[]
+
+  @@unique([node_id, step_type])
+  @@index([node_id], map: "idx_lesson_steps_node_id")
+}
+
+model parent_subscriptions {
+  id                             String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parent_id                      String
+  subscription_plan_id           String                       @db.Uuid
+  start_date                     DateTime?                    @db.Date
+  end_date                       DateTime?                    @db.Date
+  status                         subscription_status          @default(pending)
+  created_at                     DateTime?                    @default(now()) @db.Timestamp(6)
+  updated_at                     DateTime?                    @default(now()) @db.Timestamp(6)
+  is_manual_payment_under_review Boolean?                     @default(false)
+  manual_payment_screenshot      String?
+  manual_payment_screenshots     manual_payment_screenshots[]
+  parents                        parents                      @relation(fields: [parent_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  subscription_plans             subscription_plans           @relation(fields: [subscription_plan_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  payments                       payments[]
+}
+
+model parents {
+  id                      String                    @id
+  first_name              String?
+  last_name               String?
+  email                   String?                   @unique
+  pin_code                String?
+  created_at              DateTime?                 @default(now()) @db.Timestamp(6)
+  phone_number            String?
+  password_hash           String?
+  profile_image_base64    String?
+  max_pupils_allowed      Int?                      @default(1)
+  trial_end_date          DateTime?                 @db.Timestamptz(6)
+  trial_period_days       Int?                      @default(7)
+  trial_start_date        DateTime?                 @db.Timestamptz(6)
+  trial_status            trial_status?             @default(not_started)
+  manual_payment_requests manual_payment_requests[]
+  notifications           notifications[]
+  device_tokens           parent_device_tokens[]
+  parent_subscriptions    parent_subscriptions[]
+  pupils                  pupils[]
+  ratings                 ratings[]
+}
+
+model payments {
+  id                     String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parent_subscription_id String               @db.Uuid
+  chargily_session_id    String
+  amount                 Decimal              @db.Decimal(10, 2)
+  currency               String               @default("USD")
+  status                 payment_status       @default(created)
+  payment_date           DateTime?            @db.Timestamp(6)
+  created_at             DateTime?            @default(now()) @db.Timestamp(6)
+  updated_at             DateTime?            @default(now()) @db.Timestamp(6)
+  parent_subscriptions   parent_subscriptions @relation(fields: [parent_subscription_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model pupils {
+  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parent_id               String
+  first_name              String
+  age                     Int?
+  gender                  String?
+  avatar_url              String?
+  pin_code                String?
+  current_year_id         String?                   @db.Uuid
+  created_at              DateTime?                 @default(now()) @db.Timestamp(6)
+  last_name               String
+  status                  String?                   @default("active")
+  notifications           notifications[]
+  academic_years          academic_years?           @relation(fields: [current_year_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  parents                 parents                   @relation(fields: [parent_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user_lesson_step_status user_lesson_step_status[]
+  user_milestone_badges   user_milestone_badges[]
+  user_node_status        user_node_status[]
+  user_question_attempts  user_question_attempts[]
+}
+
+model step_unlock_rules {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  step_id      String       @db.Uuid
+  depends_on   String
+  metadata     Json?
+  created_at   DateTime     @default(now()) @db.Timestamptz(6)
+  lesson_steps lesson_steps @relation(fields: [step_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([step_id], map: "idx_step_unlock_rules_step_id")
+}
+
+model subject_structure {
+  id                        String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subject_id                String                      @db.Uuid
+  parent_id                 String?
+  node_type                 enum_node_type
+  title                     String
+  description               String?
+  payload                   Json?
+  order_index               Int                         @default(0)
+  created_at                DateTime                    @default(now()) @db.Timestamptz(6)
+  lesson_final_challenges   lesson_final_challenges[]
+  lesson_practice_questions lesson_practice_questions[]
+  lesson_steps              lesson_steps[]
+  subjects                  subjects                    @relation(fields: [subject_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user_milestone_badges     user_milestone_badges[]
+  user_node_status          user_node_status[]
+
+  @@index([parent_id], map: "idx_subject_structure_parent_id")
+  @@index([subject_id], map: "idx_subject_structure_subject_id")
+}
+
+model subjects {
+  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String
+  code              String?             @unique
+  description       String?
+  journey_type      String
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  academic_year_id  String              @db.Uuid
+  subject_structure subject_structure[]
+  academic_years    academic_years      @relation(fields: [academic_year_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model subscription_plans {
+  id                      String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  plan_code               String                    @unique
+  name                    String
+  price                   Decimal                   @db.Decimal(10, 2)
+  max_devices             Int
+  max_profiles            Int
+  allowed_years           String
+  description             String?
+  created_at              DateTime?                 @default(now()) @db.Timestamp(6)
+  manual_payment_requests manual_payment_requests[]
+  parent_subscriptions    parent_subscriptions[]
+}
+
+model user_lesson_step_status {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id      String       @db.Uuid
+  step_id      String       @db.Uuid
+  is_unlocked  Boolean      @default(false)
+  is_completed Boolean      @default(false)
+  unlocked_at  DateTime?    @db.Timestamptz(6)
+  completed_at DateTime?    @db.Timestamptz(6)
+  extra_data   Json?
+  created_at   DateTime     @default(now()) @db.Timestamptz(6)
+  pupils       pupils       @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_lesson_step_status_pupil")
+  lesson_steps lesson_steps @relation(fields: [step_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, step_id])
+  @@index([step_id], map: "idx_user_lesson_step_status_step_id")
+  @@index([user_id], map: "idx_user_lesson_step_status_user_id")
+}
+
+model user_milestone_badges {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id           String            @db.Uuid
+  level_id          String            @db.Uuid
+  badge_name        String            @db.VarChar(255)
+  badge_icon_url    String?
+  description       String?
+  awarded_at        DateTime?         @default(now()) @db.Timestamptz(6)
+  created_at        DateTime?         @default(now()) @db.Timestamptz(6)
+  subject_structure subject_structure @relation(fields: [level_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  pupils            pupils            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, level_id])
+}
+
+model user_node_status {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id           String            @db.Uuid
+  node_id           String            @db.Uuid
+  is_completed      Boolean           @default(false)
+  progress_data     Json?
+  completed_at      DateTime?         @db.Timestamptz(6)
+  created_at        DateTime          @default(now()) @db.Timestamptz(6)
+  pupils            pupils            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_node_status_pupil")
+  subject_structure subject_structure @relation(fields: [node_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, node_id])
+  @@index([node_id], map: "idx_user_node_status_node_id")
+  @@index([user_id], map: "idx_user_node_status_user_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model user_question_attempts {
+  id                        String                     @id(map: "user_practice_attempts_pkey") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                   String                     @db.Uuid
+  practice_question_id      String?                    @db.Uuid
+  attempt_number            Int                        @default(1)
+  is_correct                Boolean?
+  points_earned             Int?                       @default(0)
+  response_data             Json?
+  created_at                DateTime                   @default(now()) @db.Timestamptz(6)
+  final_challenge_id        String?                    @db.Uuid
+  question_type             String                     @default("practice")
+  pupils                    pupils                     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_practice_attempts_pupil")
+  lesson_final_challenges   lesson_final_challenges?   @relation(fields: [final_challenge_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lesson_practice_questions lesson_practice_questions? @relation(fields: [practice_question_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([user_id, practice_question_id, attempt_number], map: "user_practice_attempts_user_id_question_id_attempt_number_key")
+  @@index([practice_question_id], map: "idx_user_practice_attempts_question_id")
+  @@index([user_id], map: "idx_user_practice_attempts_user_id")
+}
+
+model notifications {
+  id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parent_id  String
+  pupil_id   String?           @db.Uuid
+  title      String
+  message    String
+  type       notification_type
+  payload    Json?
+  is_read    Boolean           @default(false)
+  read_at    DateTime?
+  created_at DateTime          @default(now()) @db.Timestamptz(6)
+  parents    parents           @relation(fields: [parent_id], references: [id], onDelete: Cascade)
+  pupils     pupils?           @relation(fields: [pupil_id], references: [id], onDelete: Cascade)
+
+  @@index([parent_id])
+  @@index([pupil_id])
+  @@index([is_read])
+}
+
+model sent_notifications {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pupil_id   String
+  lesson_id  String
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([pupil_id, lesson_id])
+}
+
+model parent_device_tokens {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parent_id  String
+  token      String   @unique
+  platform   String
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  parents    parents  @relation(fields: [parent_id], references: [id], onDelete: Cascade)
+
+  @@index([parent_id])
+}
+
+model ratings {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parent_id  String
+  rating     Int      @db.SmallInt
+  comment    String?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  parents    parents  @relation(fields: [parent_id], references: [id], onDelete: Cascade)
+
+  @@index([parent_id])
+  @@index([created_at])
+}
+
+model admins {
+  id                  String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email               String     @unique
+  password_hash       String
+  first_name          String?
+  last_name           String?
+  role                admin_role @default(admin)
+  is_active           Boolean    @default(true)
+  reset_token         String?
+  reset_token_expires DateTime?  @db.Timestamptz(6)
+  last_login          DateTime?  @db.Timestamptz(6)
+  created_at          DateTime   @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime   @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([email])
+  @@index([reset_token])
+}
+
+model manual_payment_screenshots {
+  id                     String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parent_subscription_id String               @db.Uuid
+  screenshot_url         String
+  created_at             DateTime             @default(now()) @db.Timestamptz(6)
+  parent_subscriptions   parent_subscriptions @relation(fields: [parent_subscription_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([parent_subscription_id], map: "idx_manual_payment_screenshots_subscription_id")
+}
+
+model manual_payment_requests {
+  id                   String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parent_id            String
+  subscription_plan_id String                        @db.Uuid
+  request_type         manual_payment_request_type   @default(upgrade)
+  status               manual_payment_request_status @default(pending)
+  screenshot_base64    String
+  amount               Decimal?                      @db.Decimal(10, 2)
+  currency             String?                       @default("USD")
+  note                 String?
+  reviewed_at          DateTime?                     @db.Timestamptz(6)
+  created_at           DateTime                      @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime                      @default(now()) @db.Timestamptz(6)
+  parents              parents                       @relation(fields: [parent_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  subscription_plans   subscription_plans            @relation(fields: [subscription_plan_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([created_at])
+  @@index([parent_id])
+  @@index([status])
+}
+
+enum notification_type {
+  system
+  subscription
+  progress
+  achievement
+  reminder
+}
+
+enum enum_node_type {
+  segment
+  unit
+  topic
+  project
+  sequence
+  lesson
+  level
+  root
+}
+
+enum enum_step_type {
+  lesson_intro
+  lesson_video
+  practice_questions
+  final_journey
+}
+
+enum payment_status {
+  created
+  paid
+  failed
+}
+
+enum subscription_status {
+  pending
+  active
+  expired
+  cancelled
+}
+
+enum enum_difficulty {
+  easy
+  medium
+  hard
+}
+
+enum admin_role {
+  admin
+  super_admin
+}
+
+enum trial_status {
+  not_started
+  active
+  expired
+  converted
+}
+
+enum manual_payment_request_status {
+  pending
+  approved
+  rejected
+}
+
+enum manual_payment_request_type {
+  upgrade
+  renew
+}

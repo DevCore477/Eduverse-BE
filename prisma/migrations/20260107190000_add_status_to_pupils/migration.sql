@@ -1,0 +1,2 @@
+ALTER TABLE "pupils"
+ADD COLUMN "status" TEXT NOT NULL DEFAULT 'active';

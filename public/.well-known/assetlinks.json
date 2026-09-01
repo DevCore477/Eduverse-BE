@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.nedjmati.nedjmatiapp",
+      "sha256_cert_fingerprints": [
+        "6E:BE:D6:2B:BC:C6:AE:F1:DB:BF:36:70:A6:7A:49:D1:7F:3E:AC:ED:0D:7F:F7:05:9A:19:1E:87:F1:E8:84:5E"
+      ]
+    }
+  }
+]
